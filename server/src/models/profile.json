@@ -1,0 +1,28 @@
+{
+  "name": "John Doe",
+  "summary": "Backend engineer with 2 years of experience.",
+  "experience": [
+    {
+      "company": "ABC",
+      "role": "Backend Developer",
+      "duration": "2 years"
+    }
+  ],
+  "projects": [
+    {
+      "name": "AI Interviewer",
+      "description": "...",
+      "tech_stack": ["FastAPI", "React", "Supabase"]
+    }
+  ],
+  "skills": {
+    "languages": ["Python", "C++"],
+    "frameworks": ["FastAPI", "React"],
+    "databases": ["PostgreSQL", "MongoDB"],
+    "tools": ["Docker", "Git"]
+  },
+  "education": {
+    "degree": "BCA",
+    "university": "RV University"
+  }
+}
