@@ -2,7 +2,7 @@
 AI interviewer is an interview practice platform that enables users to practice for job interviews so they can land their dream job sooner.
 
 ## Demo Link
-- **Live Application Demo**: [Watch AI Interviewer Demo](https://localhost:5173) *(Replace with your deployed live demo or video link)*
+- **Live Application Demo**: [Watch AI Interviewer Demo](https://ai-interviewer-94rpznz9n-vgrbuilds-projects.vercel.app/)
 
 ## Features
 1. **Secure Authentication & Profile Management**: Supabase auth, JWT validation, and profile customization.
