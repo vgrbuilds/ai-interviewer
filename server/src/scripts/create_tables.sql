@@ -132,3 +132,19 @@ create table answers (
 
     created_at timestamptz default now()
 );
+
+--extra queries 
+
+--adding realtime feature to interviews
+alter publication supabase_realtime add table interviews;
+
+--adding a trigger to delete orphaned rows ininterviews table
+create or replace function cleanup_stale_interviews()
+returns void
+language sql
+as $$
+    delete from interviews 
+    where status in ('preparing', 'failed')
+      and created_at < now() - interval '24 hours';
+$$;
+
