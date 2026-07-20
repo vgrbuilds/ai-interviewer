@@ -1,13 +1,13 @@
 # app/schemas/auth_schema.py
 
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel
 
 
 class SignUpRequest(BaseModel):
-    email: EmailStr
+    email: str
     password: str
 
 
 class SignInRequest(BaseModel):
-    email: EmailStr
+    email: str
     password: str

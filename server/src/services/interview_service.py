@@ -1,5 +1,5 @@
 from supabase import Client
-from server.src.core import supabase
+from src.core.supabase import supabase
 from src.schemas.interview_schema import InterviewCreate, InterviewUpdate
 
 class InterviewService:
@@ -25,15 +25,12 @@ class InterviewService:
         if not questions_list:
             return None
             
-        # 1. Batch insert questions into DB
         response = self.client.table("questions").insert(questions_list).execute()
         if not response.data:
             raise Exception("Failed to insert generated questions into database")
             
-        # 2. Extract UUIDs in exact order
         question_ids = [q["id"] for q in response.data]
         
-        # 3. Update interview with sequence array and transition status to 'in_progress'
         update_response = self.client.table("interviews").update({
             "question_sequence": question_ids,
             "status": "in_progress",
@@ -115,11 +112,9 @@ class InterviewService:
         if not q_seq:
             return []
 
-        # Batch fetch questions
         q_res = self.client.table("questions").select("*").in_("id", q_seq).execute()
         q_map = {q["id"]: q for q in (q_res.data or [])}
 
-        # Batch fetch answers
         a_map = {}
         if a_seq:
             a_res = self.client.table("answers").select("*").in_("id", a_seq).execute()
@@ -140,6 +135,36 @@ class InterviewService:
             })
 
         return qa_history
+
+    async def get_candidate_interview_history(self, user_id: str):
+        """Fetches all past interviews for the candidate with job details."""
+        candidate = self.client.table("candidates").select("id").eq("user_id", user_id).execute()
+        if not candidate.data:
+            return []
+
+        candidate_id = candidate.data[0]["id"]
+        response = (
+            self.client.table("interviews")
+            .select("*, jobs(company_name, job_role)")
+            .eq("candidate_id", candidate_id)
+            .order("created_at", desc=True)
+            .execute()
+        )
+
+        history = []
+        for row in response.data or []:
+            job_info = row.get("jobs") or {}
+            history.append({
+                "id": row["id"],
+                "company_name": job_info.get("company_name", "Company"),
+                "job_role": job_info.get("job_role", "Job Position"),
+                "status": row["status"],
+                "interview_score": row.get("interview_score"),
+                "interview_feedback": row.get("interview_feedback"),
+                "created_at": row.get("created_at")
+            })
+
+        return history
 
     async def save_interview_evaluation(self, interview_id: str, score: float, feedback: str):
         """Saves final evaluation score and feedback and marks interview status as 'evaluated'."""
@@ -197,4 +222,4 @@ class InterviewService:
         response = self.client.table("jobs").select("*").eq("id", job_id).execute()
         return response.data[0] if response.data else None
 
-interview_service = InterviewService(supabase.supabase)
+interview_service = InterviewService(supabase)

@@ -35,6 +35,10 @@ async def create_interview(
     
     return interview
 
+@router.get("/history")
+async def get_interview_history(current_user = Depends(get_current_user)):
+    return await interview_service.get_candidate_interview_history(current_user.id)
+
 @router.get("/{interview_id}", response_model=InterviewResponse)
 async def read_interview(interview_id: str, current_user = Depends(get_current_user)):
     interview = await interview_service.get_interview(interview_id)
@@ -81,7 +85,6 @@ async def submit_answer(
         answer_text=request.answer
     )
 
-    # If all questions answered, trigger Evaluation Agent in background task
     if result.get("is_completed"):
         background_tasks.add_task(
             interview_session_manager.evaluate_interview_session,
