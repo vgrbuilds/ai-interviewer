@@ -42,6 +42,67 @@ class InterviewService:
         
         return update_response.data[0] if update_response.data else None
 
+    async def get_current_question(self, interview_id: str):
+        """Fetches the next unanswered question object for the interview session."""
+        interview = await self.get_interview(interview_id)
+        if not interview:
+            return None
+
+        q_seq = interview.get("question_sequence") or []
+        a_seq = interview.get("answer_sequence") or []
+
+        next_idx = len(a_seq)
+        if next_idx >= len(q_seq):
+            return {"message": "All questions answered", "question": None, "is_finished": True}
+
+        next_q_id = q_seq[next_idx]
+        q_res = self.client.table("questions").select("*").eq("id", next_q_id).execute()
+        question = q_res.data[0] if q_res.data else None
+
+        return {
+            "question_number": next_idx + 1,
+            "total_questions": len(q_seq),
+            "question": question,
+            "is_finished": False
+        }
+
+    async def submit_answer(self, interview_id: str, candidate_id: str, question_id: str, answer_text: str):
+        """Inserts answer into database and appends UUID to interview answer_sequence."""
+        a_res = self.client.table("answers").insert({
+            "interview_id": interview_id,
+            "candidate_id": candidate_id,
+            "question_id": question_id,
+            "answer": answer_text
+        }).execute()
+
+        if not a_res.data:
+            raise Exception("Failed to record answer in database")
+
+        answer_id = a_res.data[0]["id"]
+
+        interview = await self.get_interview(interview_id)
+        if not interview:
+            raise Exception("Interview session not found")
+
+        answer_seq = interview.get("answer_sequence") or []
+        answer_seq.append(answer_id)
+
+        question_seq = interview.get("question_sequence") or []
+        is_completed = len(answer_seq) >= len(question_seq) and len(question_seq) > 0
+        new_status = "completed" if is_completed else interview.get("status", "in_progress")
+
+        up_res = self.client.table("interviews").update({
+            "answer_sequence": answer_seq,
+            "status": new_status,
+            "updated_at": "now()"
+        }).eq("id", interview_id).execute()
+
+        return {
+            "answer": a_res.data[0],
+            "interview": up_res.data[0] if up_res.data else None,
+            "is_completed": is_completed
+        }
+
     async def get_interview_qa_history(self, interview_id: str) -> list[dict]:
         """Fetches and aligns questions and candidate answers in sequence order."""
         interview = await self.get_interview(interview_id)
