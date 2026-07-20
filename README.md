@@ -32,4 +32,4 @@ AI interviewer is an interview practice platform that enables users to practice 
    npm install
    npm run dev
    ```
-4. Enjoy practicing interviews!
+4. Enjoy using the application!
