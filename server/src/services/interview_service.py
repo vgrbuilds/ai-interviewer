@@ -20,6 +20,84 @@ class InterviewService:
             return None
         return response.data[0]
 
+    async def save_interview_questions(self, interview_id: str, questions_list: list[dict]):
+        """Batch inserts generated questions and updates interview question_sequence and status to in_progress."""
+        if not questions_list:
+            return None
+            
+        # 1. Batch insert questions into DB
+        response = self.client.table("questions").insert(questions_list).execute()
+        if not response.data:
+            raise Exception("Failed to insert generated questions into database")
+            
+        # 2. Extract UUIDs in exact order
+        question_ids = [q["id"] for q in response.data]
+        
+        # 3. Update interview with sequence array and transition status to 'in_progress'
+        update_response = self.client.table("interviews").update({
+            "question_sequence": question_ids,
+            "status": "in_progress",
+            "updated_at": "now()"
+        }).eq("id", interview_id).execute()
+        
+        return update_response.data[0] if update_response.data else None
+
+    async def get_interview_qa_history(self, interview_id: str) -> list[dict]:
+        """Fetches and aligns questions and candidate answers in sequence order."""
+        interview = await self.get_interview(interview_id)
+        if not interview:
+            return []
+
+        q_seq = interview.get("question_sequence") or []
+        a_seq = interview.get("answer_sequence") or []
+
+        if not q_seq:
+            return []
+
+        # Batch fetch questions
+        q_res = self.client.table("questions").select("*").in_("id", q_seq).execute()
+        q_map = {q["id"]: q for q in (q_res.data or [])}
+
+        # Batch fetch answers
+        a_map = {}
+        if a_seq:
+            a_res = self.client.table("answers").select("*").in_("id", a_seq).execute()
+            a_map = {a["id"]: a for a in (a_res.data or [])}
+
+        qa_history = []
+        for idx, q_id in enumerate(q_seq):
+            q_data = q_map.get(q_id, {})
+            a_id = a_seq[idx] if idx < len(a_seq) else None
+            a_data = a_map.get(a_id) if a_id else None
+
+            qa_history.append({
+                "question_str": q_data.get("question_str", "Question unavailable"),
+                "topics": q_data.get("topics", []),
+                "difficulty": q_data.get("difficulty", ""),
+                "question_type": q_data.get("question_type", ""),
+                "candidate_answer": a_data.get("answer") if a_data else "No answer provided"
+            })
+
+        return qa_history
+
+    async def save_interview_evaluation(self, interview_id: str, score: float, feedback: str):
+        """Saves final evaluation score and feedback and marks interview status as 'evaluated'."""
+        response = self.client.table("interviews").update({
+            "interview_score": score,
+            "interview_feedback": feedback,
+            "status": "evaluated",
+            "updated_at": "now()"
+        }).eq("id", interview_id).execute()
+        return response.data[0] if response.data else None
+
+    async def mark_interview_failed(self, interview_id: str):
+        """Marks the interview status as 'failed' if AI preparation or generation fails completely."""
+        response = self.client.table("interviews").update({
+            "status": "failed",
+            "updated_at": "now()"
+        }).eq("id", interview_id).execute()
+        return response.data[0] if response.data else None
+
     async def get_interview_report(self, interview_id: str):
         interview = await self.get_interview(interview_id)
         if not interview:
@@ -27,8 +105,7 @@ class InterviewService:
         return {
             "status": interview.get("status"),
             "interview_score": interview.get("interview_score"),
-            "interview_feedback": interview.get("interview_feedback"),
-            "interview_report": interview.get("interview_report")
+            "interview_feedback": interview.get("interview_feedback")
         }
 
     async def get_job_for_interview(self, interview_id: str):

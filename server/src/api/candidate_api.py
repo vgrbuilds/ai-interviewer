@@ -3,6 +3,7 @@ from src.schemas.candidate_schema import CandidateCreate, CandidateUpdate, Chang
 from src.services.auth_service import get_current_user
 from src.services.candidate_service import candidate_service
 from src.services.resume_service import resume_service
+from src.agents.resume_parser import resume_parser_agent
 
 router = APIRouter(prefix="/candidates", tags=["Candidates"])
 
@@ -10,7 +11,6 @@ router = APIRouter(prefix="/candidates", tags=["Candidates"])
 async def read_me(current_user = Depends(get_current_user)):
     candidate = await candidate_service.get_candidate_by_user_id(current_user.id)
     if not candidate:
-        # Auto-create empty profile if it doesn't exist yet
         candidate = await candidate_service.create_candidate(
             current_user.id,
             CandidateCreate(profile_jsonb={})
@@ -31,19 +31,24 @@ async def upload_resume(file: UploadFile = File(...), current_user = Depends(get
     file_content = await file.read()
     file_path = await resume_service.upload_resume(current_user.id, file.filename, file_content)
     
-    # Check if candidate exists, if not create one
+    parsed_profile = await resume_parser_agent.parse_resume(file_content, file.filename)
+    
     candidate = await candidate_service.get_candidate_by_user_id(current_user.id)
     if not candidate:
         await candidate_service.create_candidate(
             current_user.id,
-            CandidateCreate(profile_jsonb={}, resume_path=file_path)
+            CandidateCreate(profile_jsonb=parsed_profile, resume_path=file_path)
         )
     else:
         await candidate_service.update_candidate(
             current_user.id, 
-            CandidateUpdate(resume_path=file_path)
+            CandidateUpdate(profile_jsonb=parsed_profile, resume_path=file_path)
         )
-    return {"message": "Resume uploaded successfully", "resume_path": file_path}
+    return {
+        "message": "Resume uploaded and parsed successfully",
+        "resume_path": file_path,
+        "profile_jsonb": parsed_profile
+    }
 
 @router.delete("/profile")
 async def delete_profile(current_user = Depends(get_current_user)):
