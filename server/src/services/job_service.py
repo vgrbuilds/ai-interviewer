@@ -1,5 +1,5 @@
 from supabase import Client
-from server.src.core import supabase
+from src.core.supabase import supabase
 from src.schemas.job_schema import JobCreate
 
 class JobService:
@@ -15,10 +15,14 @@ class JobService:
         }).execute()
         return response.data[0] if response.data else None
 
+    async def get_all_jobs(self):
+        response = self.client.table("jobs").select("*").order("created_at", desc=True).execute()
+        return response.data if response.data else []
+
     async def get_job(self, job_id: str):
         response = self.client.table("jobs").select("*").eq("id", job_id).execute()
         if not response.data:
             return None
         return response.data[0]
 
-job_service = JobService(supabase.supabase)
+job_service = JobService(supabase)

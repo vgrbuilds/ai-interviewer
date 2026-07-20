@@ -1,5 +1,5 @@
 from supabase import Client
-from server.src.core import supabase
+from src.core.supabase import supabase
 from src.schemas.candidate_schema import CandidateCreate, CandidateUpdate
 
 class CandidateService:
@@ -52,4 +52,4 @@ class CandidateService:
     async def update_password(self, user_id: str, new_password: str):
         return self.client.auth.admin.update_user_by_id(user_id, {"password": new_password})
 
-candidate_service = CandidateService(supabase.supabase)
+candidate_service = CandidateService(supabase)

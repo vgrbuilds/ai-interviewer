@@ -8,6 +8,10 @@ class InterviewCreate(BaseModel):
     job_id: UUID
     status: Optional[str] = "preparing"
 
+class SubmitAnswerRequest(BaseModel):
+    question_id: UUID
+    answer: str
+
 class InterviewUpdate(BaseModel):
     status: Optional[str] = None
     question_sequence: Optional[List[UUID]] = None

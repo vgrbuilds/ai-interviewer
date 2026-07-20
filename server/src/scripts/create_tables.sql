@@ -6,7 +6,8 @@ create type interview_status as enum (
     'preparing',
     'in_progress',
     'completed',
-    'evaluated'
+    'evaluated',
+    'failed'
 );
 
 create type question_type as enum (
@@ -31,7 +32,7 @@ create table candidates (
         references auth.users(id)
         on delete cascade,
 
-    profile_jsonb jsonb not null,
+    profile_jsonb jsonb not null default '{}'::jsonb,
 
     resume_path text,
 
@@ -133,12 +134,28 @@ create table answers (
     created_at timestamptz default now()
 );
 
---extra queries 
+-- =====================================================
+-- TRIGGERS & REALTIME
+-- =====================================================
 
---adding realtime feature to interviews
+-- Auto-create candidate row on user signup
+create or replace function public.handle_new_user()
+returns trigger as $$
+begin
+  insert into public.candidates (user_id, profile_jsonb)
+  values (new.id, '{}'::jsonb);
+  return new;
+end;
+$$ language plpgsql security definer;
+
+create or replace trigger on_auth_user_created
+  after insert on auth.users
+  for each row execute procedure public.handle_new_user();
+
+-- Realtime feature on interviews
 alter publication supabase_realtime add table interviews;
 
---adding a trigger to delete orphaned rows ininterviews table
+-- Stale interview cleanup function
 create or replace function cleanup_stale_interviews()
 returns void
 language sql
@@ -147,4 +164,3 @@ as $$
     where status in ('preparing', 'failed')
       and created_at < now() - interval '24 hours';
 $$;
-
