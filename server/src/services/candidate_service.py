@@ -6,11 +6,23 @@ class CandidateService:
     def __init__(self, client: Client):
         self.client = client
 
+    async def get_candidate_by_id(self, candidate_id: str):
+        response = self.client.table("candidates").select("*").eq("id", candidate_id).execute()
+        if not response.data:
+            return None
+        return response.data[0]
+
     async def get_candidate_by_user_id(self, user_id: str):
         response = self.client.table("candidates").select("*").eq("user_id", user_id).execute()
         if not response.data:
             return None
         return response.data[0]
+
+    async def get_user_email(self, user_id: str):
+        user_response = self.client.auth.admin.get_user_by_id(user_id)
+        if user_response and user_response.user:
+            return user_response.user.email
+        return None
 
     async def create_candidate(self, user_id: str, data: CandidateCreate):
         response = self.client.table("candidates").insert({

@@ -16,7 +16,6 @@ async def create_interview(request: InterviewCreate, current_user = Depends(get_
             CandidateCreate(profile_jsonb={})
         )
     
-    # Overwrite the candidate_id in the request to match the authenticated candidate
     request.candidate_id = candidate["id"]
     
     interview = await interview_service.create_interview(request)
@@ -46,12 +45,8 @@ async def read_report(interview_id: str, current_user = Depends(get_current_user
     if not candidate or str(interview["candidate_id"]) != str(candidate["id"]):
         raise HTTPException(status_code=403, detail="Not authorized to access this report")
         
-    return {
-        "status": interview["status"],
-        "interview_score": interview["interview_score"],
-        "interview_feedback": interview["interview_feedback"],
-        "interview_report": interview["interview_report"]
-    }
+    report = await interview_service.get_interview_report(interview_id)
+    return report
 
 @router.get("/{interview_id}/job")
 async def view_job(interview_id: str, current_user = Depends(get_current_user)):
@@ -63,7 +58,7 @@ async def view_job(interview_id: str, current_user = Depends(get_current_user)):
     if not candidate or str(interview["candidate_id"]) != str(candidate["id"]):
         raise HTTPException(status_code=403, detail="Not authorized to access this job information")
         
-    job = await interview_service.get_job_by_id(interview["job_id"])
+    job = await interview_service.get_job_for_interview(interview_id)
     if not job:
         raise HTTPException(status_code=404, detail="Job related to the interview not found")
         

@@ -24,6 +24,15 @@ async def upload_resume(file: UploadFile = File(...), current_user = Depends(get
         )
     return {"message": "Resume uploaded successfully", "resume_path": file_path}
 
+@router.get("/view")
+async def view_resume(current_user = Depends(get_current_user)):
+    candidate = await candidate_service.get_candidate_by_user_id(current_user.id)
+    if not candidate or not candidate.get("resume_path"):
+        raise HTTPException(status_code=404, detail="No resume found for candidate")
+        
+    url = await resume_service.get_resume_url(candidate["resume_path"])
+    return {"resume_url": url, "resume_path": candidate["resume_path"]}
+
 @router.delete("/delete")
 async def delete_resume(current_user = Depends(get_current_user)):
     candidate = await candidate_service.get_candidate_by_user_id(current_user.id)

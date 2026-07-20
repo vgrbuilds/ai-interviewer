@@ -20,13 +20,28 @@ class InterviewService:
             return None
         return response.data[0]
 
+    async def get_interview_report(self, interview_id: str):
+        interview = await self.get_interview(interview_id)
+        if not interview:
+            return None
+        return {
+            "status": interview.get("status"),
+            "interview_score": interview.get("interview_score"),
+            "interview_feedback": interview.get("interview_feedback"),
+            "interview_report": interview.get("interview_report")
+        }
+
+    async def get_job_for_interview(self, interview_id: str):
+        interview = await self.get_interview(interview_id)
+        if not interview or not interview.get("job_id"):
+            return None
+        return await self.get_job_by_id(interview["job_id"])
+
     async def update_interview(self, interview_id: str, data: InterviewUpdate):
         update_data = {k: v for k, v in data.model_dump(exclude_unset=True).items()}
         if not update_data:
             return await self.get_interview(interview_id)
         
-        # Format UUIDs or elements if necessary, but Pydantic serialization handles lists/uuids.
-        # However, list of UUIDs might need conversion to list of strings for standard JSON serialization.
         if "question_sequence" in update_data and update_data["question_sequence"] is not None:
             update_data["question_sequence"] = [str(x) for x in update_data["question_sequence"]]
         if "answer_sequence" in update_data and update_data["answer_sequence"] is not None:
